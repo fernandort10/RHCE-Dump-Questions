@@ -244,6 +244,7 @@ Create `/home/admin/ansible/roles.yml`:
 3. Implement phpinfo role for webserver host group.
 4. Ensure proper output for balancer and phpinfo pages.
 
+
 ### Task 6: Install Ansible Content Collections
 
 Install the following collections in the local collections directory:
@@ -251,6 +252,18 @@ Install the following collections in the local collections directory:
 1. `http://server.lab.example.com/role-collections/redhat-rhel_system_roles.tar.gz`
 2. `http://server.lab.example.com/role-collections/community-general-8.3.0.tar.gz`
 3. `http://server.lab.example.com/role-collections/ansible-posix-1.5.4.tar.gz`
+
+```
+wget http://server.lab.example.com/role-collections/redhat-rhel_system_roles.tar.gz
+wget http://server.lab.example.com/role-collections/community-general-8.3.0.tar.gz
+wget http://server.lab.example.com/role-collections/ansible-posix-1.5.4.tar.gz
+```
+
+```
+ansible-galaxy collection install /home/student/ansible/mycollection/redhat-rhel_system_roles.tar.gz -p /home/student/ansible/mycollection/
+ansible-galaxy collection install /home/student/ansible/mycollection/community-general-8.3.0.tar.gz -p /home/student/ansible/mycollection/
+ansible-galaxy collection install /home/student/ansible/mycollection/ansible-posix-1.5.4.tar.gz -p /home/student/ansible/mycollection/
+```
 
 ### Task 7: Install Packages in Multiple Groups
 
@@ -260,6 +273,41 @@ Create `packages.yml`:
 2. Install "RPM Development Tools" group package in prod group.
 3. Update all packages in each group.
 4. Use separate plays for each task.
+
+```
+vim packages.yml
+```
+```
+---
+- name: packages installation
+  hosts: dev,test
+  tasks:
+    - name: Install vsftpd and mariadb-server
+      dnf:
+        name:
+          - vsftpd
+          - mariadb-server
+        state: present
+
+- name: Install "RPM Development Tools" group package
+  hosts: prod
+  tasks:
+  - name: Install RPM
+    dnf:
+      name: '@RPM Development Tools'
+      state: present
+
+- name: update packages
+  hosts: all
+  tasks:
+    - name: updating all
+      dnf:
+        name: '*'
+        state: latest
+```
+```
+ansible-playbook packages.yml
+```
 
 ### Task 8: Create Web Content Playbook
 
@@ -271,6 +319,47 @@ Create `webcontent.yml` for dev group:
 4. Create `/devweb/index.html` with content "Development".
 5. Link `/devweb` to `/var/www/html/devweb`.
 
+```
+vim webcontent.yml
+```
+```
+---
+- name: Create web content
+  hosts: dev
+  tasks:
+    - name: create a dir
+      file:
+        path: /devweb
+        state: directory
+        mode: '2775'
+        group: devops
+        setype: httpd_sys_content_t
+
+    - name: create a symbolic link
+      file:
+        src: /devweb
+        dest: /var/www/html/devweb
+        state: link
+        setype: httpd_sys_content_t
+
+    - name: copy using inline content
+      copy:
+        content:
+        dest:
+        setype:
+
+    - name: permit traffic in default zone
+      firewalld:
+        service: http
+        permanent: true
+        state: enabled
+        immediate: true
+    ```
+```
+```
+ansible-playbook webcontent.yml
+```
+
 ### Task 9: Collect Hardware Report
 
 Create `hwreport.yml`:
@@ -278,6 +367,34 @@ Create `hwreport.yml`:
 1. Download `hwreport.txt` from `http://content.example.com/rhce/hwreport.empty`.
 2. Save as `/root/hwreport.txt`.
 3. Show "none" if no information is available.
+
+```
+wget http://content.example.com/rhce/hwreport.empty
+```
+```
+vim hwreport.j2
+```
+```
+Hostname={{ ansible_facts['hostname'] | default('none') }}
+Total_memory={{ ansible_facts['memtotal_mb'] | default('none') }}
+Bios_version={{ ansible_facts['bios_version'] | default('none') }}
+CPU={{ ansible_facts['processor']['processor_cores'] | default('none') }}
+vda_size={{ ansible_facts['devices']['vda']['size'] | default('none') }}
+vdb_size={{ ansible_facts['devices']['vda']['size'] | default('none') }}
+```
+```
+vim hwreport.yml
+```
+```
+- name: Collect Hardware Report
+  hosts: all
+  tasks:
+
+    - name: Create template
+      template:
+        src: hwreport.j2
+        dest: /root/hwreport.txt
+```
 
 ### Task 10: Replace /etc/issue File
 
