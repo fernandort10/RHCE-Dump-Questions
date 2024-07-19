@@ -195,26 +195,26 @@ vim /tasks/main.yml
       - firewalld
     state: latest
 
-name: Start httpd service
+- name: Start httpd service
 service:
   name: httpd
   state started
   enabled: yes
 
-name: Start firewalld service
+- name: Start firewalld service
 service:
   name: firewalld
   state: restarted
   enabled: yes
 
-name: add http service in firewall rule
+- name: add http service in firewall rule
 firewalld:
   service httpd
   state enabled
   permanent yes
   immediate: yes
 
-name: copy the template.j2 file to web server directory
+- name: copy the template.j2 file to web server directory
 template:
   src template.j2
   dest: /var/www/html/index.html
