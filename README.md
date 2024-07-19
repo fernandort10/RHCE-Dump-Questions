@@ -138,6 +138,33 @@ vim repo.yml
    - balancer: `http://content.example.com/rhce/balancer.tar`
    - phpinfo: `http://content.example.com/rhce/phpinfo.tar`
 
+- Download and set the roles:
+```
+wget http://content.example.com/rhce/balancer.tar
+wget http://content.example.com/rhce/phpinfo.tar
+```
+
+```
+vim requirements.yml
+```
+```
+---
+- src: /home/student/ansible/roles/balancer.tar
+  name: balancer
+
+- src: /home/student/ansible/roles/phpinfo.tar
+  name: phpinfo
+```
+```
+ansible-galaxy install -r requirements.yml
+```
+
+- Move the roles created in .ansible to your roles folder:
+```
+cd /home/student/.ansible/roles
+mv * /home/student/ansible/roles/
+```
+
 ### Task 4: Create Offline Apache Role
 
 1. Create role 'apache' under roles directory:
@@ -145,6 +172,68 @@ vim repo.yml
    - Host web page using `template.j2`
    - `template.j2` content: `Welcome to <hostname> on <ipaddress>`
 2. Create `apache_role.yml` playbook and run the role in the dev group.
+
+```
+ansible-galaxy init apache
+cd apache/
+```
+```
+vim /templates/template.j2
+```
+```
+Welcome to {{ ansible_facts['hostname'] }} on {{ ansible_facts[ansible_default_ipv4][address] }}
+```
+```
+vim /tasks/main.yml
+```
+```
+---
+- name: Install Apache
+  dnf:
+    name:
+      - httpd
+      - firewalld
+    state: latest
+
+name: Start httpd service
+service:
+  name: httpd
+  state started
+  enabled: yes
+
+name: Start firewalld service
+service:
+  name: firewalld
+  state: restarted
+  enabled: yes
+
+name: add http service in firewall rule
+firewalld:
+  service httpd
+  state enabled
+  permanent yes
+  immediate: yes
+
+name: copy the template.j2 file to web server directory
+template:
+  src template.j2
+  dest: /var/www/html/index.html
+```
+
+- In your /ansible folder
+```
+vim apache_role.yml
+```
+```
+---
+- name: Use apache role
+  hosts: dev
+  roles:
+    - apache
+```
+```
+ansible-playbook apache_role.yml
+```
 
 ### Task 5: Create Balancer and PHPInfo Roles Playbook
 
