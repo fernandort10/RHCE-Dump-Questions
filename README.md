@@ -102,6 +102,33 @@ Create `repo.yml` to configure the following repositories on all nodes:
    - URL: `http://content/rhel9.0/x86_64/dvd/appstream`
    - GPG enabled, key: `http://content.example.com/rhel9.0/x86_64/dvd/rpm-gpg-key-redhat-release`
    - Repository enabled
+  
+```
+vim repo.yml
+```
+```
+---
+- name: Configuring Repositories in ALL Nodes.
+  hosts: all
+  tasks:
+    - name: BaseOS
+      yum_repository:
+        name: baseos-internal
+        description: baseos description
+        baseurl: http://content/rhel9.0/x86_64/dvd/baseos
+        gpgkey: http://content.example.com/rhel9.0/x86_64/dvd/rpm-gpg-key-redhat-release
+        gpgcheck: yes
+        enabled: yes
+
+    - name: AppStream
+      yum_repository:
+        name: appstream-internal
+        description: app description
+        baseurl: http://content/rhel9.0/x86_64/dvd/appstream
+        gpgkey: http://content.example.com/rhel9.0/x86_64/dvd/rpm-gpg-key-redhat-release
+        gpgcheck: yes
+        enabled: yes
+```
 
 ### Task 3: Create Roles Directory and Download Roles
 
