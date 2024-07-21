@@ -87,6 +87,24 @@ prod
    - Roles location: `/home/student/ansible/roles`
    - Collections location: `/home/student/ansible/mycollection`
 
+```
+vim ansible.cfg
+```
+```
+[defaults]
+
+remote_user=student
+inventory=/home/student/ansible/inventory
+roles_path=/home/student/ansible/roles
+collection_path=/home/student/ansible/mycollection
+
+[privilege_escalation]
+
+become=true
+become_method=sudo
+become_user=root
+```
+
 ### Task 2: Create repo.yml for Configuring Repository in All Nodes
 
 Create `repo.yml` to configure the following repositories on all nodes:
@@ -395,6 +413,9 @@ vim hwreport.yml
         src: hwreport.j2
         dest: /root/hwreport.txt
 ```
+```
+ansible-playbook hwreport.yml
+```
 
 ### Task 10: Replace /etc/issue File
 
@@ -405,6 +426,35 @@ Create `issue.yml`:
 3. prod group: "Production"
 4. Run on all managed nodes.
 
+```
+vim issue.yml
+```
+```
+- name: Replace issue file on hosts
+  hosts: all
+  tasks:
+
+    - name: Replace template
+      template:
+        src: issue.j2
+        dest: /etc/issue
+```
+```
+vim issue.j2
+```
+```
+{% if 'dev' in group_names %}
+"Development"
+{% elif 'test' in group_names %}
+"Test"
+{% elif 'prod' in group_names %}
+"Production"
+{% endif %}
+```
+```
+ansible-playbook issue.yml
+```
+
 ### Task 11: Configure /etc/myhosts
 
 Create `hosts.yml`:
@@ -414,6 +464,44 @@ Create `hosts.yml`:
 3. Save as `/etc/myhosts` on all managed nodes.
 4. Run in dev group.
 
+```
+wget http://content.example.com/rhce/hosts.j2
+```
+```
+vim host.j2
+```
+add this to the hosts.j2 template
+```
+...
+
+{% for in groups['all'] %}
+{{ hostvars[host].ansible_default_ipv4.address }} {{ hostvars[host].ansible_fqdn }} {{ 
+hostvars[host].ansible_hostname }}
+{% endfor %}
+```
+```
+vim hosts.yml
+```
+```
+- name: use template hosts.j2
+  hosts: all
+  tasks:
+    - name: execute the template
+      template:
+        src: ./hosts.j2
+        dest: /etc/myhosts
+- name: delete from all
+  hosts: all, !dev
+  tasks:
+    - name: delete file
+      file:
+        path: /etc/myhosts
+        state: absent
+```
+```
+ansible-playbook hosts.yml
+```
+
 ### Task 12: Create and Encrypt Vault Variable File
 
 1. Create `vault.yml` with variables:
@@ -421,6 +509,44 @@ Create `hosts.yml`:
    - pw_manager: lammgr
 2. Encrypt using password "P@ssword".
 3. Store password in `secret.txt`.
+
+```
+vim secret.txt
+```
+```
+P@assword
+```
+```
+ansible-vault create vault.yml --vault-password-file=secret.txt
+```
+```
+pw_developer: lamdev
+pw_manager: lammgr
+```
+```
+ansible-vault view vault.yml --vault-password-file=secret.txt
+```
+
+- Modify the ansible.cfg and add the vault password file
+
+```
+vim ansible.cfg
+```
+```
+[defaults]
+
+remote_user=student
+inventory=/home/student/ansible/inventory
+roles_path=/home/student/ansible/roles
+collection_path=/home/student/ansible/mycollection
+vault_password_file=./secret.txt
+
+[privilege_escalation]
+
+become=true
+become_method=sudo
+become_user=root
+```
 
 ### Task 13: Configure Users Using Variable Files
 
@@ -432,6 +558,58 @@ Create `users.yml`:
 4. Create users based on job roles.
 5. Set passwords using SHA512 format.
 6. Use when conditions for different host groups.
+
+```
+wget http://content.example.com/rhce/user_list.yml
+```
+```
+vim users.yml
+```
+```
+---
+- name: user creation
+  hosts: dev,test
+  vars_files:
+    - user_list.yml
+    - vault.yml
+  tasks:
+
+  - name: add group
+    group:
+      name: opsdev
+      state: present
+
+  - name: adding users developer
+    user:
+      name: "{{ item.name }}"
+      groups: opsdev
+      password: "{{ pw_developer | password_hash(''sha512') }}"
+    when: item.job=='developer'
+    loop: "{{ users }}"
+
+- name: Create users and groups manager
+  hosts: prod
+  vars_files:
+    - user_list.yml
+    - vault.yml
+  tasks:
+
+   - name: add group
+          group:
+            name: opsmgr
+            state: present
+  - name: adding users manager
+    user:
+      name: "{{ item.name }}"
+      groups: opsmgr
+      password: "{{ pw_manager | password_hash(''sha512') }}"
+    when: item.job=='manager'
+    loop: "{{ users }}"
+```
+
+```
+ansible-playbook users.yml
+```
 
 ### Task 14: Rekey Variable File
 
