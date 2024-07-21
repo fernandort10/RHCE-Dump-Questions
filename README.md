@@ -404,6 +404,7 @@ vdb_size={{ ansible_facts['devices']['vda']['size'] | default('none') }}
 vim hwreport.yml
 ```
 ```
+---
 - name: Collect Hardware Report
   hosts: all
   tasks:
@@ -430,6 +431,7 @@ Create `issue.yml`:
 vim issue.yml
 ```
 ```
+---
 - name: Replace issue file on hosts
   hosts: all
   tasks:
@@ -483,6 +485,7 @@ hostvars[host].ansible_hostname }}
 vim hosts.yml
 ```
 ```
+---
 - name: use template hosts.j2
   hosts: all
   tasks:
@@ -617,11 +620,38 @@ Rekey `http://content.example.com/rhce/salaries.yml`:
 - Old password: cisco
 - New password: redhat
 
+```
+wget http://content.example.com/rhce/salaries.yml
+```
+```
+ansible-vault rekey solaries.yml
+```
+
 ### Task 15: Create Cronjob for User student
 
 Create `crontab.yml`:
 - Set up cron job for user student on all nodes.
 - Run every 2 minutes: `logger "EX294 in progress"`
+
+```
+vim crontab.yml
+```
+```
+---
+- name: Create Cronjob for User student
+  hosts: all
+  tasks:
+    -name: Execute cronjob
+     cron:
+      name: logger
+      minute: "*/2"
+      user: student
+      job: logger "EX294 in progress"
+      state: present
+```
+```
+ansible-playbook crontab.yml
+```
 
 ### Task 16: Create and Use Logical Volume
 
@@ -633,6 +663,40 @@ Create `/home/admin/ansible/ansible/lv.yml`:
 4. Handle errors for non-existent volume group.
 5. Do not mount the logical volume.
 
+```
+vim lv.yml
+```
+```
+---
+name: Create LV
+hosts: all
+tasks:
+  - name: Print not existent
+    debug:
+      msg: "The volume group does not exist"
+    when: ansible_lvm.vgs.research is not defined
+
+  - name: Create lv 1500m
+    lvol:
+      vg: research
+      lv: data
+      size: 1500m
+    ignore_errors: yes
+    register: lv_result
+
+  - name: Create lv 800m
+    lvol:
+      vg: research
+      lv: data
+      size: 800m
+    when: lv_result is failed
+
+  - name: Format to ext4
+    filesystem:
+      fstype: ext4
+      dev: /dev/research/data
+```
+
 ### Task 17: Use RHEL Timesync System Role
 
 Create `/home/admin/ansible/timesync.yml`:
@@ -643,10 +707,44 @@ Create `/home/admin/ansible/timesync.yml`:
 4. Use time server: classroom.lab.example.com.
 5. Enable iburst parameter.
 
+```
+vim timesync.yml
+```
+```
+---
+- name: use timesync
+  hosts: all
+  vars:
+  timesync_ntp_servers:
+    - hostname: classroom.lab.example.com
+      iburst: yes
+roles:
+  - rhel.system-roles.timesync
+```
+```
+ansible-playbook timesync.yml
+```
 ### Task 18: Use SELinux Role for All Nodes
 
 Create `selinux.yml`:
 - Set SELinux to enforcing mode on all nodes.
+
+```
+vim selinux.yml
+```
+```
+---
+- name: configure selinux
+  hosts: all
+  vars:
+    selinux_state: enforcing
+  roles:
+    - role: rhel-system-roles.selinux
+      become: true
+```
+```
+ansible-playbook selinux.yml
+```
 
 ## Conclusion
 
