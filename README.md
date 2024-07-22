@@ -570,44 +570,41 @@ vim users.yml
 ```
 ```
 ---
-- name: user creation
-  hosts: dev,test
+---
+- name: Configure users using variables files
+  hosts: all
   vars_files:
-    - user_list.yml
     - vault.yml
+    - user_list.yml
   tasks:
 
-  - name: add group
-    group:
-      name: opsdev
-      state: present
+    - name: Configure group for development hosts
+      group:
+        name: opsdev
+        state: present
+      when: "'dev' in group_names or 'test' in group_names"
 
-  - name: adding users developer
-    user:
-      name: "{{ item.name }}"
-      groups: opsdev
-      password: "{{ pw_developer | password_hash(''sha512') }}"
-    when: item.job=='developer'
-    loop: "{{ users }}"
+    - name: Configure user for dev hosts
+      user:
+        name: "{{ item.name }}"
+        group: opsdev
+        password: "{{ pw_developer | password_hash('sha512') }}"
+      when: "'dev' in group_names or 'test' in group_names and item.job == 'developer'"
+      loop: "{{ myusers }}"
 
-- name: Create users and groups manager
-  hosts: prod
-  vars_files:
-    - user_list.yml
-    - vault.yml
-  tasks:
+    - name: Configure group for prod hosts
+      group:
+        name: opsmgr
+        state: present
+      when: "'prod' in group_names"
 
-   - name: add group
-          group:
-            name: opsmgr
-            state: present
-  - name: adding users manager
-    user:
-      name: "{{ item.name }}"
-      groups: opsmgr
-      password: "{{ pw_manager | password_hash(''sha512') }}"
-    when: item.job=='manager'
-    loop: "{{ users }}"
+    - name: Configure user for prod hosts
+      user:
+        name: "{{ item.name }}"
+        group: opsmgr
+        password: "{{ pw_manager | password_hash('sha512') }}"
+      when: "'prod' in group_names and item.job == 'manager'"
+      loop: "{{ myusers }}"
 ```
 
 ```
